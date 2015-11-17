@@ -1,0 +1,10 @@
+:Base obsim.hlp
+:Title Organ Bath Simulation
+1 Starting an Experiment=IDH_STARTINGANEXPERIMENT
+1 Adding Agonists=IDH_Adding Agonists
+1 Adding Antagonists=IDH_Adding Antagonists
+1 Measuring Tissue Responses=IDH_MeasuringTissueResponses
+1 Menu Options=IDH_MenuOptions
+1 Calculating Final Bath Concentration
+2 Drugs added to organ bath=IDH_CalculatingFBCORGANBATH
+2 Drugs Added to Reservoir=IDH_CalculatingFBCRESERVOIR
