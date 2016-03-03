@@ -55,7 +55,11 @@ unit OBSimMain;
 //                   to avoid overfast transitions when very high drug concs used
 //                   Unknowns Drugs now 1,2 A-D
 // 10/11/2015        Volumes added now limited to 0.05 - 1 ml.
-
+// 02/03/1026  V2.8  Rate of change of concentration no longer limited but now reduced within
+//                   first 100 steps after drug addition.
+//                   Better chosen vertical and horizontal calibration bars now used for prints and copy images
+//                   Printer exception when no default printer set or printers available now handled
+//                   allowing application to start without a printer.
 
 interface
 
@@ -206,7 +210,6 @@ type
     Label9: TLabel;
     Label10: TLabel;
     bCalculate: TButton;
-    Label8: TLabel;
     LbDilutionEqnNum1: TLabel;
     Label11: TLabel;
     TDisplayPanel: TPanel;
@@ -311,6 +314,7 @@ type
   public
     { Public declarations }
     TissueType : Integer ;       // Type of tissue in use
+    InitialMixing : Cardinal ;
   end;
 
 var
@@ -329,7 +333,7 @@ const
     MaxDisplayForce = 20.0 ;
     BackgroundNoiseStDev = 0.1 ;  // Background noise (gms)
     ForceStDev = 0.05 ;
-    MixingRate = 0.5 ;
+    MaxMixingRate = 0.5 ;
     MeanRMax = 15.0 ;
     RMaxStDev = 0.05 ;
     BathVolume = 10.0 ;          // Organ bath volume (ml)
@@ -425,6 +429,7 @@ begin
         end ;
 
      Timer.Enabled := True ;
+     InitialMixing := 0 ;
 
      end;
 
@@ -994,6 +999,7 @@ begin
              else NewPoint := 0.0 ;
              end ;
         UpdateDisplay( NewPoint ) ;
+        InitialMixing := InitialMixing + 1 ;
         end
      else begin
         // Display
@@ -1056,13 +1062,14 @@ var
     Activation50 : Single ;
     MaxDirectMuscleActivation,DirectMuscleActivation : single ;
     CaChannelOpenFraction : single ;
+    MixingRate : Single ;
 begin
 
     // Update drug bath concentrations
+    MixingRate := (MaxMixingRate*InitialMixing) / ( 100.0 + InitialMixing) ;
     for i := 0 to NumDrugs-1 do begin
         dConc := (Drugs[i].FinalBathConcentration - Drugs[i].BathConcentration)*MixingRate*dt ;
-        dConc := Min(Abs(dConc), Abs(Drugs[i].FinalBathConcentration - Drugs[i].BathConcentration)*0.1 )*Sign(dConc) ;
-        Drugs[i].BathConcentration := Drugs[i].BathConcentration + dConc ;
+        Drugs[i].BathConcentration := Max(Drugs[i].BathConcentration + dConc,0.0) ;
         end ;
 
     // Opioid receptors located on cholinergic nerve terminals (block transmitter release)
@@ -1226,13 +1233,14 @@ var
     NerveNorAdrRelease : SIngle ;
     NerveReleasedAch : SIngle ;
     mAchR : SIngle ;
+    MixingRate : Single ;
 begin
 
     // Update drug bath concentrations
+    MixingRate := (MaxMixingRate*InitialMixing) / ( 100.0 + InitialMixing) ;
     for i := 0 to NumDrugs-1 do begin
         dConc := (Drugs[i].FinalBathConcentration - Drugs[i].BathConcentration)*MixingRate*dt ;
-        dConc := Sign(dConc)*Min(Abs(dConc),1E-8) ;
-        Drugs[i].BathConcentration := Drugs[i].BathConcentration + dConc ;
+        Drugs[i].BathConcentration := Max(Drugs[i].BathConcentration + dConc,0.0) ;
         end ;
 
  // Cyclic sympathetic nerve transmitter release
@@ -1355,13 +1363,14 @@ var
     NerveReleasedAch : Single ;
     R : Single ;
     RNerve : Single ;
+    MixingRate : single ;
 begin
 
     // Update drug bath concentrations
+    MixingRate := (MaxMixingRate*InitialMixing) / ( 100.0 + InitialMixing) ;
     for i := 0 to NumDrugs-1 do begin
         dConc := (Drugs[i].FinalBathConcentration - Drugs[i].BathConcentration)*MixingRate*dt ;
-        dConc := Sign(dConc)*Min(Abs(dConc),1E-8) ;
-        Drugs[i].BathConcentration := Drugs[i].BathConcentration + dConc ;
+        Drugs[i].BathConcentration := Max(Drugs[i].BathConcentration + dConc,0.0) ;
         end ;
 
     // Nerve stimulation
@@ -1442,14 +1451,14 @@ var
     CaStore : Single ;                 // Ca store uptake pump activity
     CaS : Single ;                    // Ca released from internal stores
     R : Single ;
+    MixingRate : single ;
 begin
 
-
     // Update drug bath concentrations
+    MixingRate := (MaxMixingRate*InitialMixing) / ( 100.0 + InitialMixing) ;
     for i := 0 to NumDrugs-1 do begin
-        dConc := (Drugs[i].FinalBathConcentration - Drugs[i].BathConcentration)
-                 *MixingRate*dt ;
-        Drugs[i].BathConcentration := Drugs[i].BathConcentration + dConc ;
+        dConc := (Drugs[i].FinalBathConcentration - Drugs[i].BathConcentration)*MixingRate*dt ;
+        Drugs[i].BathConcentration := Max(Drugs[i].BathConcentration + dConc,0.0) ;
         end ;
 
     // Adrenergic receptor activation
@@ -1668,7 +1677,7 @@ begin
                          Drugs[iDrug].FinalBathConcentration,
                          Drugs[iDrug].Units] ) ;
      AddDrugMarker( ChartAnnotation ) ;
-
+     InitialMixing := 0 ;
      end;
 
 
@@ -1813,9 +1822,10 @@ begin
                         [LeftStr(ReservoirDrugs[iDrug].ShortName,3),
                          ReservoirDrugs[iDrug].FinalBathConcentration,
                          ReservoirDrugs[iDrug].Units]) ;
+
          AddDrugMarker( ChartAnnotation ) ;
          end ;
-
+     InitialMixing := 0 ;
      end;
 
 
@@ -1829,6 +1839,8 @@ var
      iDrug : Integer ;
      ChartAnnotation : String ;
 begin
+
+     if cbUnknown.Items.Count < 1 then Exit ;
 
      if edUnknownVolume.Value > MaxSyringeVolume then begin
         ShowMessage( format('Syringe can only deliver %.1f ml',[MaxSyringeVolume])) ;
@@ -1872,6 +1884,7 @@ begin
          AddDrugMarker( ChartAnnotation ) ;
          end ;
 
+     InitialMixing := 0 ;
      end;
 
 
@@ -1937,8 +1950,11 @@ begin
         scDisplay.PrinterRightMargin := 25 ;
         scDisplay.PrinterTopMargin := 25 ;
         scDisplay.PrinterBottomMargin := 25 ;
-        scDisplay.TCalBar := 20.0 ;
-        scDisplay.ChanCalBar[0] := 1.0 ;
+        scDisplay.ChanCalBar[0] :=  scDisplay.ChanGridSpacing[0] ;
+        scDisplay.TCalBar := scDisplay.TimeGridSpacing/scDisplay.TScale ;
+        scDisplay.PrinterFontName := 'Arial' ;
+        scDisplay.PrinterFontSize := 10 ;
+        scDisplay.PrinterPenWidth := 2 ;
         scDisplay.Print ;
         end ;
      end;
@@ -2097,12 +2113,16 @@ procedure TMainFrm.mnCopyImageClick(Sender: TObject);
 // Copy image of displayed trace to clipboad
 // -----------------------------------------
 begin
-     scDisplay.MetafileWidth := 900 ;
+
+     scDisplay.ChanCalBar[0] :=  scDisplay.ChanGridSpacing[0] ;
+     scDisplay.TCalBar := scDisplay.TimeGridSpacing/scDisplay.TScale ;
+     scDisplay.PrinterFontName := 'Arial' ;
+     scDisplay.PrinterFontSize := 10 ;
+     scDisplay.MetafileWidth := 1000 ;
      scDisplay.MetafileHeight := 600 ;
-     scDisplay.TCalBar := 20.0 ;
-     scDisplay.ChanCalBar[0] := 1.0 ;
-     scdisplay.PrinterFontSize := 10 ;
+     scDisplay.PrinterPenWidth := 2 ;
      scDisplay.CopyImageToClipBoard ;
+
      end;
 
 procedure TMainFrm.mnLoadExperimentClick(Sender: TObject);

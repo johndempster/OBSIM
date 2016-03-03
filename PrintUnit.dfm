@@ -79,4 +79,11 @@ object PrintFrm: TPrintFrm
     ParentFont = False
     TabOrder = 2
   end
+  object KillFormTimer: TTimer
+    Enabled = False
+    Interval = 50
+    OnTimer = KillFormTimerTimer
+    Left = 168
+    Top = 72
+  end
 end
