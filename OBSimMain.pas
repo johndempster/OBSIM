@@ -60,6 +60,9 @@ unit OBSimMain;
 //                   Better chosen vertical and horizontal calibration bars now used for prints and copy images
 //                   Printer exception when no default printer set or printers available now handled
 //                   allowing application to start without a printer.
+// 25/01/2017 V2.9 Botulinum toxin block of Ach neurotransmission added
+//                   with forensic samples A-C. Stock solutions listed as dilution from sample
+
 
 interface
 
@@ -119,7 +122,8 @@ type
           EC50_CaChannelV : Single ;
           EC50_CaChannelR : Single ;
           EC50_CaStore : Single ;
-
+          EC50_BTXB : Single ;
+          EC50_BTXE : Single ;
           Antagonist : Boolean ;
           Unknown : Boolean ;
           Tissue : Integer ;
@@ -259,6 +263,7 @@ type
     procedure bTDisplayHalfClick(Sender: TObject);
     procedure edStartTimeKeyPress(Sender: TObject; var Key: Char);
     procedure mnNewExperimentClick(Sender: TObject);
+    procedure cbUnknownChange(Sender: TObject);
   private
     { Private declarations }
     ADC : Array[0..MaxPoints-1] of SmallInt ;
@@ -274,6 +279,9 @@ type
     mAch_EC50 : Single ;           // Muscarinic Ach receptor EC50
     nAch_EC50 : Single ;           // Nicotinic Ach receptor EC50
     MaxReleasedAch : Single ;
+    BTXBFreeFraction : single ;     // Fraction of botulinum toxin free release sites
+    BTXEFreeFraction : single ;     // Fraction of botulinum toxin free release sites
+
 
     Drugs : Array[0..MaxDrugs-1] of TDrug ;    // Drug properties array
     ReservoirDrugs : Array[0..MaxDrugs-1] of TDrug ;    // Drug properties array
@@ -308,7 +316,10 @@ type
     procedure AddDrugMarker( ChartAnnotation : String ) ;
     procedure LoadFromFile( FileName : String ) ;
     procedure SaveToFile( FileName : String ) ;
-    procedure SetStockConcentrationList( ComboBox : TComboBox ) ;
+    procedure SetStockConcentrationList(
+              iDrug : Integer ;
+              ComboBox : TComboBox ) ;
+
     procedure SetDilutionEquation ;
     procedure UpdateDisplayDuration ;
   public
@@ -528,6 +539,8 @@ begin
           Drugs[i].EC50_CaChannelV := 1E30 ;
           Drugs[i].EC50_CaChannelR := 1E30 ;
           Drugs[i].EC50_CaStore := 1E30 ;
+          Drugs[i].EC50_BTXB := 1E30 ;
+          Drugs[i].EC50_BTXE := 1E30 ;
           Drugs[i].Tissue := 0 ;
           Drugs[i].Units := 'M' ;
           Drugs[i].Unknown := False ;
@@ -875,6 +888,68 @@ begin
      Drugs[NumDrugs].Unknown := True ;
      Inc(NumDrugs) ;
 
+
+     // Botulinum toxin B
+     Drugs[NumDrugs].Name := 'Botulinum Toxin B' ;
+     Drugs[NumDrugs].ShortName := 'BTXB' ;
+     Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
+     Drugs[NumDrugs].BathConcentration := 0.0 ;
+     Drugs[NumDrugs].EC50_BTXB := 1e-2 ;
+     Drugs[NumDrugs].Antagonist := False ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
+     Drugs[NumDrugs].Unknown := True ;
+     Drugs[NumDrugs].Units := 'ml' ;
+     Inc(NumDrugs) ;
+
+     // Botulinum toxin B + Anti-B antibody
+     Drugs[NumDrugs].Name := 'Botulinum Toxin B + Anti-B' ;
+     Drugs[NumDrugs].ShortName := 'BTXB+AB' ;
+     Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
+     Drugs[NumDrugs].BathConcentration := 0.0 ;
+     Drugs[NumDrugs].EC50_BTXB := 1e-10 ;
+     Drugs[NumDrugs].Antagonist := True ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
+     Drugs[NumDrugs].Unknown := True ;
+     Drugs[NumDrugs].Units := 'ml' ;
+     Inc(NumDrugs) ;
+
+     // Sample A (Botulinum toxin B)
+     Drugs[NumDrugs].Name := 'Sample A' ;
+     Drugs[NumDrugs].ShortName := 'SamA' ;
+     Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
+     Drugs[NumDrugs].BathConcentration := 0.0 ;
+     Drugs[NumDrugs].EC50_BTXB := 1e-2 ;
+     Drugs[NumDrugs].Antagonist := False ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
+     Drugs[NumDrugs].Unknown := True ;
+     Drugs[NumDrugs].Units := 'ml' ;
+     Inc(NumDrugs) ;
+
+     // Sample B (Botulinum toxin B)
+     Drugs[NumDrugs].Name := 'Sample B' ;
+     Drugs[NumDrugs].ShortName := 'SamB' ;
+     Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
+     Drugs[NumDrugs].BathConcentration := 0.0 ;
+     Drugs[NumDrugs].EC50_BTXB := 1e-2 ;
+     Drugs[NumDrugs].Antagonist := False ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
+     Drugs[NumDrugs].Unknown := True ;
+     Drugs[NumDrugs].Units := 'ml' ;
+     Inc(NumDrugs) ;
+
+     // Sample E (Botulinum toxin E)
+     Drugs[NumDrugs].Name := 'Sample C' ;
+     Drugs[NumDrugs].ShortName := 'SamC' ;
+     Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
+     Drugs[NumDrugs].BathConcentration := 0.0 ;
+     Drugs[NumDrugs].EC50_BTXE := 1e-2 ;
+     Drugs[NumDrugs].Antagonist := False ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
+     Drugs[NumDrugs].Unknown := True ;
+     Drugs[NumDrugs].Units := 'ml' ;
+     Inc(NumDrugs) ;
+
+
      // Copy set of drugs into reservoir
      for i:= 0 to NumDrugs-1 do ReservoirDrugs[i] := Drugs[i] ;
 
@@ -888,7 +963,8 @@ begin
      cbAgonist.ItemIndex := 0 ;
 
      // Set up stock soln. concentration list
-     SetStockConcentrationList( cbAgonistStockConc ) ;
+     SetStockConcentrationList( Integer(cbAgonist.Items.Objects[cbAgonist.ItemIndex]),
+                                cbAgonistStockConc ) ;
 
      // Create list of antagonists
      cbAntagonist.Clear ;
@@ -898,7 +974,8 @@ begin
             cbAntagonist.Items.AddObject( Drugs[i].Name, TObject(i)) ;
          end ;
      cbAntagonist.ItemIndex := 0 ;
-     SetStockConcentrationList( cbAntagonistStockConc ) ;
+     SetStockConcentrationList( Integer(cbAntagonist.Items.Objects[cbAntagonist.ItemIndex]),
+                                cbAntagonistStockConc ) ;
 
      // Create list of unknowns
      cbUnknown.Clear ;
@@ -907,7 +984,8 @@ begin
             cbUnknown.Items.AddObject( Drugs[i].Name, TObject(i)) ;
          end ;
      cbUnknown.ItemIndex := 0 ;
-     SetStockConcentrationList( cbUnknownStockConc ) ;
+     SetStockConcentrationList( Integer(cbUnknown.Items.Objects[cbUnknown.ItemIndex]),
+                                cbUnknownStockConc ) ;
 
      mAch_EC50 := 1E-6 ;
      nAch_EC50 := 2E-6 ;
@@ -934,6 +1012,10 @@ begin
 
      // Set desensitisation to none ;
      Desensitisation := 0.0 ;
+
+     // Set botulinum toxin binding to none
+     BTXBFreeFraction := 1.0 ;
+     BTXEFreeFraction := 1.0 ;
 
      // Clear stimulus frequency
      StimFrequency := 0.0 ;
@@ -1104,11 +1186,45 @@ begin
     Efficacy := Efficacy / ( Sum + 0.001 ) ;
     AlphaADR :=  Efficacy*Occupancy ;
 
+    // Botulinum toxin B binding
+
+    Sum := 0.0 ;
+    for i := 0 to NumDrugs-1 do begin
+        Sum := Sum + Drugs[i].BathConcentration/Drugs[i].EC50_BTXB ;
+        end ;
+    Occupancy := Sum / ( 1. + Sum ) ;
+
+    Efficacy := 0.0 ;
+    for i := 0 to NumDrugs-1 do if not Drugs[i].Antagonist then
+        begin
+        Efficacy := Efficacy + Drugs[i].BathConcentration/Drugs[i].EC50_BTXB ;
+        end ;
+    Efficacy := Efficacy / ( Sum + 0.001 ) ;
+    BTXBFreeFraction := BTXBFreeFraction*(1.0 - Efficacy*Occupancy*0.01) ;
+
+    // Botulinum toxin E binding
+
+    Sum := 0.0 ;
+    for i := 0 to NumDrugs-1 do
+        begin
+        Sum := Sum + Drugs[i].BathConcentration/Drugs[i].EC50_BTXE ;
+        end ;
+    Occupancy := Sum / ( 1. + Sum ) ;
+
+    Efficacy := 0.0 ;
+    for i := 0 to NumDrugs-1 do if not Drugs[i].Antagonist then
+        begin
+        Efficacy := Efficacy + Drugs[i].BathConcentration/Drugs[i].EC50_BTXE ;
+        end ;
+    Efficacy := Efficacy / ( Sum + 0.001 ) ;
+    BTXEFreeFraction := BTXEFreeFraction*(1.0 - Efficacy*Occupancy*0.01) ;
+
     // Acetylcholine released from nerve
     // (blocked by Opioid receptor activation)
     // (Opioids can only achieve 90% block)
 
-    MaxReleasedAch := (mAch_EC50*0.25*(0.02 + (1-OpR)*(1-AlphaADR))) ;
+    MaxReleasedAch := (mAch_EC50*0.25*(0.02 + (1-OpR)*(1-AlphaADR)))
+                       * BTXBFreeFraction*BTXEFreeFraction ;
     MaxDirectMuscleActivation := 1.0 ;
     RMax := NextRMax ;
     if not bStimulationOn.Enabled then begin
@@ -1673,7 +1789,7 @@ begin
 
      // Add chart annotation
      ChartAnnotation := format('%s %.3e %s',
-                        [LeftStr(Drugs[iDrug].ShortName,3),
+                        [Drugs[iDrug].ShortName,
                          Drugs[iDrug].FinalBathConcentration,
                          Drugs[iDrug].Units] ) ;
      AddDrugMarker( ChartAnnotation ) ;
@@ -1695,7 +1811,7 @@ begin
          Drugs[i].FinalBathConcentration := ReservoirDrugs[i].FinalBathConcentration ;
          if (ReservoirDrugs[i].FinalBathConcentration > 0.0) and
             (i <> iCaBath) then begin
-            ChartAnnotation := ChartAnnotation + LeftStr(ReservoirDrugs[i].ShortName,3) + ' ' ;
+            ChartAnnotation := ChartAnnotation + ReservoirDrugs[i].ShortName + ' ' ;
             end ;
          end ;
 
@@ -1803,7 +1919,7 @@ begin
 
          // Add chart annotation
          ChartAnnotation := format('%s %.3e %s',
-                            [LeftStr(Drugs[iDrug].ShortName,3),
+                            [Drugs[iDrug].ShortName,
                             Drugs[iDrug].FinalBathConcentration,
                             Drugs[iDrug].Units] ) ;
          AddDrugMarker( ChartAnnotation ) ;
@@ -1819,7 +1935,7 @@ begin
                                                          + AddedConcentration ;
          // Add chart annotation
          ChartAnnotation := format('%s %.3g %s (RES)',
-                        [LeftStr(ReservoirDrugs[iDrug].ShortName,3),
+                        [ReservoirDrugs[iDrug].ShortName,
                          ReservoirDrugs[iDrug].FinalBathConcentration,
                          ReservoirDrugs[iDrug].Units]) ;
 
@@ -1862,7 +1978,7 @@ begin
 
          // Add chart annotation
          ChartAnnotation := format('%s %.3e %s',
-                            [LeftStr(Drugs[iDrug].ShortName,3),
+                            [Drugs[iDrug].ShortName,
                             Drugs[iDrug].FinalBathConcentration,
                             Drugs[iDrug].Units] ) ;
          AddDrugMarker( ChartAnnotation ) ;
@@ -1878,7 +1994,7 @@ begin
                                                          + AddedConcentration ;
          // Add chart annotation
          ChartAnnotation := format('%s %.3g %s (RES)',
-                        [LeftStr(ReservoirDrugs[iDrug].ShortName,3),
+                        [ReservoirDrugs[iDrug].ShortName,
                          ReservoirDrugs[iDrug].FinalBathConcentration,
                          ReservoirDrugs[iDrug].Units]) ;
          AddDrugMarker( ChartAnnotation ) ;
@@ -2321,21 +2437,33 @@ begin
 procedure TMainFrm.cbAgonistChange(Sender: TObject);
 
 begin
-    SetStockConcentrationList( cbAgonistStockConc ) ;
+    SetStockConcentrationList( Integer(cbAgonist.Items.Objects[cbAgonist.ItemIndex]),
+                               cbAgonistStockConc ) ;
     end ;
 
 
-procedure TMainFrm.SetStockConcentrationList( ComboBox : TComboBox ) ;
+procedure TMainFrm.SetStockConcentrationList(
+          iDrug : Integer ;
+          ComboBox : TComboBox ) ;
 // ------------------------------------------
 // Set list of available stock concentrations
 // ------------------------------------------
 var
-    iDrug,i : Integer ;
+    i : Integer ;
     x : Single ;
 begin
 
-     iDrug := Integer(cbAgonist.Items.Objects[cbAgonist.ItemIndex]) ;
-     if Drugs[iDrug].Units = 'mg/ml' then begin
+//     iDrug := Integer(cbAgonist.Items.Objects[cbAgonist.ItemIndex]) ;
+     if Drugs[iDrug].Units = 'ml' then begin
+        // Set up stock soln. concentration lists
+        ComboBox.Clear ;
+        x := 1.0 ;
+        ComboBox.Items.AddObject('1/1 dilution',TObject(x));
+        x := 0.1 ;
+        ComboBox.Items.AddObject('1/10 dilution',TObject(x));
+        ComboBox.ItemIndex := 0 ;
+         end
+     else if Drugs[iDrug].Units = 'mg/ml' then begin
         // Set up stock soln. concentration lists
         ComboBox.Clear ;
         x := 10000.0 ;
@@ -2363,7 +2491,8 @@ begin
 
 procedure TMainFrm.cbAntagonistChange(Sender: TObject);
 begin
-    SetStockConcentrationList( cbAntagonistStockConc) ;
+    SetStockConcentrationList( Integer(cbAntagonist.Items.Objects[cbAntagonist.ItemIndex]),
+                               cbAntagonistStockConc) ;
     end;
 
 procedure TMainFrm.cbDilutionResultChange(Sender: TObject);
@@ -2373,6 +2502,13 @@ procedure TMainFrm.cbDilutionResultChange(Sender: TObject);
 begin
     SetDilutionEquation ;
     end;
+
+procedure TMainFrm.cbUnknownChange(Sender: TObject);
+begin
+      SetStockConcentrationList( Integer(cbUnknown.Items.Objects[cbUnknown.ItemIndex]),
+                                cbUnknownStockConc ) ;
+      end;
+
 
 procedure TMainFrm.edStartTimeKeyPress(Sender: TObject; var Key: Char);
 // ------------------
