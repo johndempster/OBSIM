@@ -62,6 +62,7 @@ unit OBSimMain;
 //                   allowing application to start without a printer.
 // 25/01/2017 V2.9 Botulinum toxin block of Ach neurotransmission added
 //                   with forensic samples A-C. Stock solutions listed as dilution from sample
+// 26/01/17        BTX + antibody renamed Botulinum Tox A+B antibody
 
 
 interface
@@ -902,8 +903,8 @@ begin
      Inc(NumDrugs) ;
 
      // Botulinum toxin B + Anti-B antibody
-     Drugs[NumDrugs].Name := 'Botulinum Toxin B + Anti-B' ;
-     Drugs[NumDrugs].ShortName := 'BTXB+AB' ;
+     Drugs[NumDrugs].Name := 'Botulinum Tox. A+B Antibody' ;
+     Drugs[NumDrugs].ShortName := 'BTX-AB' ;
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
      Drugs[NumDrugs].BathConcentration := 0.0 ;
      Drugs[NumDrugs].EC50_BTXB := 1e-10 ;
