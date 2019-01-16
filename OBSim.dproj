@@ -78,11 +78,11 @@
         <DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
-        <VerInfo_MinorVer>9</VerInfo_MinorVer>
-        <VerInfo_MajorVer>2</VerInfo_MajorVer>
+        <VerInfo_MinorVer>1</VerInfo_MinorVer>
+        <VerInfo_MajorVer>3</VerInfo_MajorVer>
         <VerInfo_AutoGenVersion>true</VerInfo_AutoGenVersion>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <VerInfo_Keys>CompanyName=Strathclyde Institute for Pharmacy &amp; Biomedical Sciences;FileDescription=OBSim;FileVersion=2.9.0.0;InternalName=;LegalCopyright=(c) J. Dempster, University of Strathclyde;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.9.0.0;Comments=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=Strathclyde Institute for Pharmacy &amp; Biomedical Sciences;FileDescription=OBSim;FileVersion=3.1.0.0;InternalName=;LegalCopyright=(c) J. Dempster, University of Strathclyde;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.9.0.0;Comments=</VerInfo_Keys>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

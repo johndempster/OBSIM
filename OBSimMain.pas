@@ -60,9 +60,15 @@ unit OBSimMain;
 //                   Better chosen vertical and horizontal calibration bars now used for prints and copy images
 //                   Printer exception when no default printer set or printers available now handled
 //                   allowing application to start without a printer.
-// 25/01/2017 V2.9 Botulinum toxin block of Ach neurotransmission added
+// 25/01/2017 V2.9   Botulinum toxin block of Ach neurotransmission added
 //                   with forensic samples A-C. Stock solutions listed as dilution from sample
+// 21.08.18   V3.0   Ach_mEC50 and hyoscine increased to make ACH responses similar to those in real guinea pig ileum lab. class
+//                   Morphine EC50 increased slightly
+//                   Added concentrations now vary with a C.V. of 10% to increase radom variability of responses
 // 26/01/17        BTX + antibody renamed Botulinum Tox A+B antibody
+// 16.01.19 V3.1     Chart annotation of Unknown drugs now works correctly
+//                   Drug A now opioid agonist 10X more potent than morphine
+//                   Drug B now adrenoceptor agonist which blocks  transmitter release a GP ileum which is 10X less potent than morphine
 
 
 interface
@@ -106,6 +112,7 @@ type
           Name : String ;
           ShortName : String ;
           FinalBathConcentration : single ;
+          DisplayBathConcentration : single ;
           BathConcentration : single ;
           Conc : single ;
           EC50_HistR : single ;
@@ -272,8 +279,6 @@ type
     StartPoint : Integer ;
     NumPointsDisplayed : Integer ;
 
-
-
     // Nerve stimulus
     StimulusStartedAt : Integer ;
     NextStimulusAt : Integer ;
@@ -282,7 +287,6 @@ type
     MaxReleasedAch : Single ;
     BTXBFreeFraction : single ;     // Fraction of botulinum toxin free release sites
     BTXEFreeFraction : single ;     // Fraction of botulinum toxin free release sites
-
 
     Drugs : Array[0..MaxDrugs-1] of TDrug ;    // Drug properties array
     ReservoirDrugs : Array[0..MaxDrugs-1] of TDrug ;    // Drug properties array
@@ -545,6 +549,9 @@ begin
           Drugs[i].Tissue := 0 ;
           Drugs[i].Units := 'M' ;
           Drugs[i].Unknown := False ;
+          Drugs[i].FinalBathConcentration := 0.0 ;
+          Drugs[i].DisplayBathConcentration := 0.0 ;
+          Drugs[i].BathConcentration := 0.0 ;
           end ;
 
      NumDrugs := 0 ;
@@ -602,7 +609,7 @@ begin
      Drugs[NumDrugs].ShortName := 'Mor' ;
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
      Drugs[NumDrugs].BathConcentration := 0.0 ;
-     Drugs[NumDrugs].EC50_OpR := 3.5E-8*RandG(1.0,0.05) ; ;
+     Drugs[NumDrugs].EC50_OpR := 4.0E-8*RandG(1.0,0.05) ; {21/8/18 3.5E-8->4.0E-8}
      Drugs[NumDrugs].Antagonist := False ;
      Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer ;
      Inc(NumDrugs) ;
@@ -753,7 +760,7 @@ begin
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
      Drugs[NumDrugs].BathConcentration := 0.0 ;
      Drugs[NumDrugs].EC50_nAchR := 1E-5*RandG(1.0,0.05) ;
-     Drugs[NumDrugs].EC50_mAchR := 4.2E-8*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].EC50_mAchR := 4.2E-7*RandG(1.0,0.05) ; {21/8/18 4.2E-8->4.2E-7 Ach less potent on mAChr}
      Drugs[NumDrugs].Antagonist := False ;
      Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer + tJejunum ;
      Inc(NumDrugs) ;
@@ -773,7 +780,7 @@ begin
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
      Drugs[NumDrugs].BathConcentration := 0.0 ;
      Drugs[NumDrugs].EC50_nAchR := 2E-6*RandG(1.0,0.05) ;
-     Drugs[NumDrugs].EC50_mAchR := 1E-10*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].EC50_mAchR := 1E-7*RandG(1.0,0.05) ; {21/8/18 1E-10 > 1E-7M Hyoscine less potent}
      Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer ;
      Drugs[NumDrugs].Antagonist := True ;
      Inc(NumDrugs) ;
@@ -844,12 +851,12 @@ begin
      Drugs[NumDrugs].Unknown := True ;
      Inc(NumDrugs) ;
 
-     // Drug C: Loperimide (mu-opioid agonist)
+     // Drug A: (mu-opioid agonist) (10X more potent than morphine)
      Drugs[NumDrugs].Name := 'Drug A' ;
      Drugs[NumDrugs].ShortName := 'DrA' ;
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
      Drugs[NumDrugs].BathConcentration := 0.0 ;
-     Drugs[NumDrugs].EC50_OpR := 1E-7*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].EC50_OpR := 5E-9*RandG(1.0,0.05) ; // Decreased from 1E-7 16.01.19
      Drugs[NumDrugs].Antagonist := False ;
      Drugs[NumDrugs].Tissue := tGPIleum ;
      Drugs[NumDrugs].Unknown := True ;
@@ -860,7 +867,7 @@ begin
      Drugs[NumDrugs].ShortName := 'DrB' ;
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
      Drugs[NumDrugs].BathConcentration := 0.0 ;
-     Drugs[NumDrugs].EC50_Alpha2_AdrenR := 2E-6*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].EC50_Alpha2_AdrenR := 5E-7*RandG(1.0,0.05) ; //Increased from 2E-6 16.01.19
      Drugs[NumDrugs].Antagonist := False ;
      Drugs[NumDrugs].Tissue := tGPIleum ;
      Drugs[NumDrugs].Unknown := True ;
@@ -998,17 +1005,21 @@ begin
      // Clear all drugs from organ bath & reservoir
      for i := 0 to NumDrugs-1 do begin
          Drugs[i].FinalBathConcentration := 0.0 ;
+         Drugs[i].DisplayBathConcentration := 0.0 ;
          Drugs[i].BathConcentration := 0.0 ;
          ReservoirDrugs[i].FinalBathConcentration := 0.0 ;
+         ReservoirDrugs[i].DisplayBathConcentration := 0.0 ;
          ReservoirDrugs[i].BathConcentration := 0.0 ;
          end ;
 
      // Set salt solution Ca concentration
      if Integer(cbSolution.Items.Objects[cbSolution.ItemIndex]) = ZeroCaSoln then begin
         Drugs[iCaBath].FinalBathConcentration := 0.0 ;
+        Drugs[iCaBath].DisplayBathConcentration := 0.0 ;
         end
      else begin
         Drugs[iCaBath].FinalBathConcentration := 2.5E-3 ;
+        Drugs[iCaBath].DisplayBathConcentration := 2.5E-3 ;
         end ;
 
      // Set desensitisation to none ;
@@ -1224,8 +1235,8 @@ begin
     // (blocked by Opioid receptor activation)
     // (Opioids can only achieve 90% block)
 
-    MaxReleasedAch := (mAch_EC50*0.25*(0.02 + (1-OpR)*(1-AlphaADR)))
-                       * BTXBFreeFraction*BTXEFreeFraction ;
+    MaxReleasedAch := (mAch_EC50*0.4*(0.02 + (1-OpR)*(1-AlphaADR)))
+                       * BTXBFreeFraction*BTXEFreeFraction ;         // 0.25
     MaxDirectMuscleActivation := 1.0 ;
     RMax := NextRMax ;
     if not bStimulationOn.Enabled then begin
@@ -1782,16 +1793,20 @@ begin
      AddedConcentration :=  (StockConcentration*edAgonistVolume.Value) / BathVolume ;
      edAgonistVolume.Value := edAgonistVolume.Value ;
 
-     // Update final bath concentration
-     Drugs[iDrug].FinalBathConcentration := Drugs[iDrug].FinalBathConcentration
+     // Update display bath concentration
+     Drugs[iDrug].DisplayBathConcentration := Drugs[iDrug].DisplayBathConcentration
                                             + AddedConcentration ;
+
+     // Update final bath concentration (with 10% C.V. random variability to simulation variation in response)
+     Drugs[iDrug].FinalBathConcentration := Drugs[iDrug].FinalBathConcentration
+                                            + AddedConcentration*RandG(1.0,0.1) ;
 
      RMax := NextRMax ;
 
      // Add chart annotation
      ChartAnnotation := format('%s %.3e %s',
                         [Drugs[iDrug].ShortName,
-                         Drugs[iDrug].FinalBathConcentration,
+                         Drugs[iDrug].DisplayBathConcentration,
                          Drugs[iDrug].Units] ) ;
      AddDrugMarker( ChartAnnotation ) ;
      InitialMixing := 0 ;
@@ -1810,6 +1825,7 @@ begin
      ChartAnnotation := 'Wash (' ;
      for i:= 0 to NumDrugs-1 do begin
          Drugs[i].FinalBathConcentration := ReservoirDrugs[i].FinalBathConcentration ;
+         Drugs[i].DisplayBathConcentration := ReservoirDrugs[i].DisplayBathConcentration ;
          if (ReservoirDrugs[i].FinalBathConcentration > 0.0) and
             (i <> iCaBath) then begin
             ChartAnnotation := ChartAnnotation + ReservoirDrugs[i].ShortName + ' ' ;
@@ -1819,9 +1835,11 @@ begin
      // Set salt solution Ca concentration
      if Integer(cbSolution.Items.Objects[cbSolution.ItemIndex])= ZeroCaSoln then begin
         Drugs[iCaBath].FinalBathConcentration := 0.0 ;
+        Drugs[iCaBath].DisplayBathConcentration := 0.0 ;
         end
      else begin
         Drugs[iCaBath].FinalBathConcentration := 2.5E-3 ;
+        Drugs[iCaBath].DisplayBathConcentration := 2.5E-3 ;
         end ;
 
      // Set type of solution in bath
@@ -1914,14 +1932,19 @@ begin
           // -----------
          // Calculate change in final bath concentration
          AddedConcentration :=  (StockConcentration*edAntagonistVolume.Value) / BathVolume ;
-         Drugs[iDrug].FinalBathConcentration := Drugs[iDrug].FinalBathConcentration
+
+         // Add drug to display conc.
+         Drugs[iDrug].DisplayBathConcentration := Drugs[iDrug].DisplayBathConcentration
                                                 + AddedConcentration ;
 
+         // Add drug to final conc. (with 10% C.V. variability)
+         Drugs[iDrug].FinalBathConcentration := Drugs[iDrug].FinalBathConcentration
+                                                + AddedConcentration*RandG(1.0,0.1) ;
 
          // Add chart annotation
          ChartAnnotation := format('%s %.3e %s',
                             [Drugs[iDrug].ShortName,
-                            Drugs[iDrug].FinalBathConcentration,
+                            Drugs[iDrug].DisplayBathConcentration,
                             Drugs[iDrug].Units] ) ;
          AddDrugMarker( ChartAnnotation ) ;
 
@@ -1931,13 +1954,16 @@ begin
 
           // Calculate change in reservoir concentration
           AddedConcentration :=  (StockConcentration*edAntagonistVolume.Value) / ReservoirVolume ;
-         // Update reservoir
-         ReservoirDrugs[iDrug].FinalBathConcentration := ReservoirDrugs[iDrug].FinalBathConcentration
+         // Update reservoir display conc.
+         ReservoirDrugs[iDrug].DisplayBathConcentration := ReservoirDrugs[iDrug].DisplayBathConcentration
                                                          + AddedConcentration ;
+         // Update reservoir (with 10% C.V. variability)
+         ReservoirDrugs[iDrug].FinalBathConcentration := ReservoirDrugs[iDrug].FinalBathConcentration
+                                                         + AddedConcentration*RandG(1.0,0.1) ;
          // Add chart annotation
          ChartAnnotation := format('%s %.3g %s (RES)',
                         [ReservoirDrugs[iDrug].ShortName,
-                         ReservoirDrugs[iDrug].FinalBathConcentration,
+                         ReservoirDrugs[iDrug].DisplayBathConcentration,
                          ReservoirDrugs[iDrug].Units]) ;
 
          AddDrugMarker( ChartAnnotation ) ;
@@ -1974,13 +2000,19 @@ begin
           // -----------
          // Calculate change in final bath concentration
          AddedConcentration :=  (StockConcentration*edUnknownVolume.Value) / BathVolume ;
+
+         // Add to display conc. in bath
+        Drugs[iDrug].DisplayBathConcentration := Drugs[iDrug].DisplayBathConcentration
+                                                 + AddedConcentration ;
+
+         // Add to final conc. in bath
          Drugs[iDrug].FinalBathConcentration := Drugs[iDrug].FinalBathConcentration
-                                                + AddedConcentration ;
+                                                + AddedConcentration*RandG(1.0,0.1) ;
 
          // Add chart annotation
          ChartAnnotation := format('%s %.3e %s',
                             [Drugs[iDrug].ShortName,
-                            Drugs[iDrug].FinalBathConcentration,
+                            Drugs[iDrug].DisplayBathConcentration,
                             Drugs[iDrug].Units] ) ;
          AddDrugMarker( ChartAnnotation ) ;
 
@@ -1990,13 +2022,16 @@ begin
 
           // Calculate change in reservoir concentration
           AddedConcentration :=  (StockConcentration*edUnknownVolume.Value) / ReservoirVolume ;
-         // Update reservoir
-         ReservoirDrugs[iDrug].FinalBathConcentration := ReservoirDrugs[iDrug].FinalBathConcentration
+         // Update reservoir display conc.
+         ReservoirDrugs[iDrug].DisplayBathConcentration := ReservoirDrugs[iDrug].DisplayBathConcentration
                                                          + AddedConcentration ;
+         // Update reservoir final conc.
+         ReservoirDrugs[iDrug].FinalBathConcentration := ReservoirDrugs[iDrug].FinalBathConcentration
+                                                         + AddedConcentration*RandG(1.0,0.1) ;
          // Add chart annotation
          ChartAnnotation := format('%s %.3g %s (RES)',
                         [ReservoirDrugs[iDrug].ShortName,
-                         ReservoirDrugs[iDrug].FinalBathConcentration,
+                         ReservoirDrugs[iDrug].DisplayBathConcentration,
                          ReservoirDrugs[iDrug].Units]) ;
          AddDrugMarker( ChartAnnotation ) ;
          end ;
@@ -2359,6 +2394,7 @@ begin
      // Clear drugs
      for i := 0 to NumDrugs-1 do begin
          ReservoirDrugs[i].FinalBathConcentration := 0.0 ;
+         ReservoirDrugs[i].DisplayBathConcentration := 0.0 ;
          //ReservoirDrugs[i].BathConcentration := 0.0 ;
          end ;
 
@@ -2367,9 +2403,11 @@ begin
      if TissueType = tArterialRing then begin
         if Integer(cbSolution.Items.Objects[cbSolution.ItemIndex])= ZeroCaSoln then begin
            ReservoirDrugs[iCaBath].FinalBathConcentration := 0.0 ;
+           ReservoirDrugs[iCaBath].DisplayBathConcentration := 0.0 ;
            end
         else begin
            ReservoirDrugs[iCaBath].FinalBathConcentration := 2.5E-3 ;
+           ReservoirDrugs[iCaBath].DisplayBathConcentration := 2.5E-3 ;
            end ;
         end ;
 
