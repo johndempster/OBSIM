@@ -55,7 +55,7 @@ unit OBSimMain;
 //                   to avoid overfast transitions when very high drug concs used
 //                   Unknowns Drugs now 1,2 A-D
 // 10/11/2015        Volumes added now limited to 0.05 - 1 ml.
-// 02/03/1026  V2.8  Rate of change of concentration no longer limited but now reduced within
+// 02/03/2016  V2.8  Rate of change of concentration no longer limited but now reduced within
 //                   first 100 steps after drug addition.
 //                   Better chosen vertical and horizontal calibration bars now used for prints and copy images
 //                   Printer exception when no default printer set or printers available now handled
@@ -69,6 +69,8 @@ unit OBSimMain;
 // 16.01.19 V3.1     Chart annotation of Unknown drugs now works correctly
 //                   Drug A now opioid agonist 10X more potent than morphine
 //                   Drug B now adrenoceptor agonist which blocks  transmitter release a GP ileum which is 10X less potent than morphine
+// 111.12.19 V3.2    Rabbit Arterial Ring: List out of range error now trapped when no unknown drugs defined
+// 22.07.20 V3.3     Lower limit of vertical range of chart display now limited to no more than -10% of full scale.
 
 
 interface
@@ -79,7 +81,7 @@ uses
   HTMLLabel, StrUtils, shared, ComCtrls, shellapi, UITYpes ;
 
 const
-    MaxPoints = 1000000 ;
+    MaxPoints = 10000000 ;
     MaxDisplayPoints = 2000 ;
     MaxDrugs = 100 ;
     MaxMarkers = 500 ;
@@ -272,6 +274,7 @@ type
     procedure edStartTimeKeyPress(Sender: TObject; var Key: Char);
     procedure mnNewExperimentClick(Sender: TObject);
     procedure cbUnknownChange(Sender: TObject);
+    procedure scDisplayCursorChange(Sender: TObject);
   private
     { Private declarations }
     ADC : Array[0..MaxPoints-1] of SmallInt ;
@@ -873,7 +876,7 @@ begin
      Drugs[NumDrugs].Unknown := True ;
      Inc(NumDrugs) ;
 
-     // Drug E: Verapamil (Ca channel blocker)
+     // Drug C: Verapamil (Ca channel blocker)
      Drugs[NumDrugs].Name := 'Drug C' ;
      Drugs[NumDrugs].ShortName := 'DrC' ;
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
@@ -884,7 +887,7 @@ begin
      Drugs[NumDrugs].Unknown := True ;
      Inc(NumDrugs) ;
 
-     // Drug F: Oxybutynin: Muscarinic antagonist
+     // Drug D: Oxybutynin: Muscarinic antagonist
      Drugs[NumDrugs].Name := 'Drug D' ;
      Drugs[NumDrugs].ShortName := 'DrD' ;
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
@@ -945,7 +948,7 @@ begin
      Drugs[NumDrugs].Units := 'ml' ;
      Inc(NumDrugs) ;
 
-     // Sample E (Botulinum toxin E)
+     // Sample C (Botulinum toxin E)
      Drugs[NumDrugs].Name := 'Sample C' ;
      Drugs[NumDrugs].ShortName := 'SamC' ;
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
@@ -968,11 +971,13 @@ begin
          if (Drugs[i].Tissue and TissueType) <> 0 then
             cbAgonist.Items.AddObject( Drugs[i].Name, TObject(i)) ;
          end ;
-     cbAgonist.ItemIndex := 0 ;
-
-     // Set up stock soln. concentration list
-     SetStockConcentrationList( Integer(cbAgonist.Items.Objects[cbAgonist.ItemIndex]),
-                                cbAgonistStockConc ) ;
+     if cbAntagonist.Items.Count > 0 then
+        begin
+        cbAgonist.ItemIndex := 0 ;
+        // Set up stock soln. concentration list
+        SetStockConcentrationList( Integer(cbAgonist.Items.Objects[cbAgonist.ItemIndex]),
+                                   cbAgonistStockConc ) ;
+        end ;
 
      // Create list of antagonists
      cbAntagonist.Clear ;
@@ -981,9 +986,12 @@ begin
          if (Drugs[i].Tissue and TissueType) <> 0 then
             cbAntagonist.Items.AddObject( Drugs[i].Name, TObject(i)) ;
          end ;
-     cbAntagonist.ItemIndex := 0 ;
-     SetStockConcentrationList( Integer(cbAntagonist.Items.Objects[cbAntagonist.ItemIndex]),
-                                cbAntagonistStockConc ) ;
+     if cbAntagonist.Items.Count > 0 then
+        begin
+        cbAntagonist.ItemIndex := 0 ;
+        SetStockConcentrationList( Integer(cbAntagonist.Items.Objects[cbAntagonist.ItemIndex]),
+                                   cbAntagonistStockConc ) ;
+        end ;
 
      // Create list of unknowns
      cbUnknown.Clear ;
@@ -991,9 +999,12 @@ begin
          if (Drugs[i].Tissue and TissueType) <> 0 then
             cbUnknown.Items.AddObject( Drugs[i].Name, TObject(i)) ;
          end ;
-     cbUnknown.ItemIndex := 0 ;
-     SetStockConcentrationList( Integer(cbUnknown.Items.Objects[cbUnknown.ItemIndex]),
-                                cbUnknownStockConc ) ;
+     if cbUnknown.Items.Count > 0 then
+        begin
+        cbUnknown.ItemIndex := 0 ;
+        SetStockConcentrationList( Integer(cbUnknown.Items.Objects[cbUnknown.ItemIndex]),
+                                   cbUnknownStockConc ) ;
+        end;
 
      mAch_EC50 := 1E-6 ;
      nAch_EC50 := 2E-6 ;
@@ -1468,7 +1479,6 @@ begin
     Inc(NumPointsInBuf) ;
     Inc(NumPointsDisplayed) ;
     scDisplay.DisplayNewPoints( NumPointsInBuf - scDisplay.XOffset ) ;
-    //scDisplay.Invalidate ;
 
     end ;
 
@@ -1780,7 +1790,8 @@ var
      ChartAnnotation : String ;
 begin
 
-     if edAgonistVolume.Value > MaxSyringeVolume then begin
+     if edAgonistVolume.Value > MaxSyringeVolume then
+        begin
         ShowMessage( format('Syringe can only deliver %.1f ml',[MaxSyringeVolume])) ;
         Exit ;
         end ;
@@ -1823,7 +1834,8 @@ var
 begin
 
      ChartAnnotation := 'Wash (' ;
-     for i:= 0 to NumDrugs-1 do begin
+     for i:= 0 to NumDrugs-1 do
+         begin
          Drugs[i].FinalBathConcentration := ReservoirDrugs[i].FinalBathConcentration ;
          Drugs[i].DisplayBathConcentration := ReservoirDrugs[i].DisplayBathConcentration ;
          if (ReservoirDrugs[i].FinalBathConcentration > 0.0) and
@@ -1833,17 +1845,20 @@ begin
          end ;
 
      // Set salt solution Ca concentration
-     if Integer(cbSolution.Items.Objects[cbSolution.ItemIndex])= ZeroCaSoln then begin
+     if Integer(cbSolution.Items.Objects[cbSolution.ItemIndex])= ZeroCaSoln then
+        begin
         Drugs[iCaBath].FinalBathConcentration := 0.0 ;
         Drugs[iCaBath].DisplayBathConcentration := 0.0 ;
         end
-     else begin
+     else
+        begin
         Drugs[iCaBath].FinalBathConcentration := 2.5E-3 ;
         Drugs[iCaBath].DisplayBathConcentration := 2.5E-3 ;
         end ;
 
      // Set type of solution in bath
-     if Integer(cbSolution.Items.Objects[cbSolution.ItemIndex])= ZeroCaSoln then begin
+     if Integer(cbSolution.Items.Objects[cbSolution.ItemIndex])= ZeroCaSoln then
+        begin
         ChartAnnotation := ChartAnnotation + '0 Ca' ;
         end ;
 
@@ -1985,7 +2000,8 @@ begin
 
      if cbUnknown.Items.Count < 1 then Exit ;
 
-     if edUnknownVolume.Value > MaxSyringeVolume then begin
+     if edUnknownVolume.Value > MaxSyringeVolume then
+        begin
         ShowMessage( format('Syringe can only deliver %.1f ml',[MaxSyringeVolume])) ;
         Exit ;
         end ;
@@ -1995,7 +2011,8 @@ begin
      iDrug := Integer(cbUnknown.Items.Objects[cbUnknown.ItemIndex]) ;
      StockConcentration := Single( cbUnknownStockConc.Items.Objects[cbUnknownStockConc.ItemIndex]) ;
 
-     if cbAddUnknownTo.ItemIndex = 0 then begin
+     if cbAddUnknownTo.ItemIndex = 0 then
+        begin
           // Add to bath
           // -----------
          // Calculate change in final bath concentration
@@ -2017,24 +2034,25 @@ begin
          AddDrugMarker( ChartAnnotation ) ;
 
          end
-     else begin
-          // Add to reservoir
+     else
+        begin
+        // Add to reservoir
 
-          // Calculate change in reservoir concentration
-          AddedConcentration :=  (StockConcentration*edUnknownVolume.Value) / ReservoirVolume ;
-         // Update reservoir display conc.
-         ReservoirDrugs[iDrug].DisplayBathConcentration := ReservoirDrugs[iDrug].DisplayBathConcentration
+        // Calculate change in reservoir concentration
+        AddedConcentration :=  (StockConcentration*edUnknownVolume.Value) / ReservoirVolume ;
+        // Update reservoir display conc.
+        ReservoirDrugs[iDrug].DisplayBathConcentration := ReservoirDrugs[iDrug].DisplayBathConcentration
                                                          + AddedConcentration ;
-         // Update reservoir final conc.
-         ReservoirDrugs[iDrug].FinalBathConcentration := ReservoirDrugs[iDrug].FinalBathConcentration
+        // Update reservoir final conc.
+        ReservoirDrugs[iDrug].FinalBathConcentration := ReservoirDrugs[iDrug].FinalBathConcentration
                                                          + AddedConcentration*RandG(1.0,0.1) ;
-         // Add chart annotation
-         ChartAnnotation := format('%s %.3g %s (RES)',
+        // Add chart annotation
+        ChartAnnotation := format('%s %.3g %s (RES)',
                         [ReservoirDrugs[iDrug].ShortName,
                          ReservoirDrugs[iDrug].DisplayBathConcentration,
                          ReservoirDrugs[iDrug].Units]) ;
-         AddDrugMarker( ChartAnnotation ) ;
-         end ;
+        AddDrugMarker( ChartAnnotation ) ;
+        end ;
 
      InitialMixing := 0 ;
      end;
@@ -2171,6 +2189,23 @@ begin
      end ;
 
 
+procedure TMainFrm.scDisplayCursorChange(Sender: TObject);
+// --------------------------------------------
+// Display cursor moved or display zoom changed
+// --------------------------------------------
+var
+    ch : Integer ;
+begin
+     // Ensure that horizontal cursor remains at zero
+     for ch := 0 to scDisplay.NumChannels-1 do
+         if scDisplay.YMin[ch] < (MinADCValue div 10) then
+            begin
+            scDisplay.YMin[ch] := MinADCValue div 10 ;
+            scDisplay.Invalidate ;
+            end;
+
+end;
+
 procedure TMainFrm.Label5Click(Sender: TObject);
 begin
      if not bStimulationOn.Enabled then AddDrugMarker( 'Stim(mu.)' ) ;
@@ -2259,7 +2294,6 @@ begin
      end ;
 
 
-
 procedure TMainFrm.mnCopyImageClick(Sender: TObject);
 // -----------------------------------------
 // Copy image of displayed trace to clipboad
@@ -2277,12 +2311,12 @@ begin
 
      end;
 
+
 procedure TMainFrm.mnLoadExperimentClick(Sender: TObject);
 // -------------------------
 // Load experiment from file
 // -------------------------
 begin
-
 
     if UnSavedData then begin
         if MessageDlg('Existing experiment will be overwritten! Are you sure?', mtConfirmation,
@@ -2291,6 +2325,7 @@ begin
 
    OpenDialog.options := [ofPathMustExist] ;
    OpenDialog.FileName := '' ;
+
    OpenDialog.DefaultExt := DataFileExtension ;
    //OpenDialog.InitialDir := OpenDirectory ;
    OpenDialog.Filter := format( ' Organ Bath Expt. (*%s)|*%s',
@@ -2301,6 +2336,7 @@ begin
    if OpenDialog.execute then LoadFromFile( OpenDialog.FileName ) ;
 
    end;
+
 
 procedure TMainFrm.mnNewExperimentClick(Sender: TObject);
 // ---------------------
@@ -2348,7 +2384,7 @@ begin
 
 procedure TMainFrm.bStimulationOffClick(Sender: TObject);
 // --------------------
-// Start nerve stimulus
+// Stop nerve stimulus
 // --------------------
 var
   ChartAnnotation : String ;
@@ -2380,7 +2416,6 @@ begin
         end
      else NewExperiment ;
      end;
-
 
 
 procedure TMainFrm.bFreshReservoirClick(Sender: TObject);
@@ -2415,6 +2450,7 @@ begin
      AddDrugMarker( ChartAnnotation ) ;
 
      end;
+
 
 procedure TMainFrm.mnSaveExperimentClick(Sender: TObject);
 // -----------------------
@@ -2492,8 +2528,11 @@ var
     x : Single ;
 begin
 
+     if ComboBox.Items.Count < 1 then Exit ;
+
 //     iDrug := Integer(cbAgonist.Items.Objects[cbAgonist.ItemIndex]) ;
-     if Drugs[iDrug].Units = 'ml' then begin
+     if Drugs[iDrug].Units = 'ml' then
+        begin
         // Set up stock soln. concentration lists
         ComboBox.Clear ;
         x := 1.0 ;
@@ -2501,23 +2540,26 @@ begin
         x := 0.1 ;
         ComboBox.Items.AddObject('1/10 dilution',TObject(x));
         ComboBox.ItemIndex := 0 ;
-         end
-     else if Drugs[iDrug].Units = 'mg/ml' then begin
+        end
+     else if Drugs[iDrug].Units = 'mg/ml' then
+        begin
         // Set up stock soln. concentration lists
         ComboBox.Clear ;
         x := 10000.0 ;
-        for i := 4 Downto -3 do begin
-         ComboBox.Items.AddObject(
-         format( '1E%d mg/ml',[i]), TObject(x) ) ;
-         x := x/10.0 ;
-         end ;
-         ComboBox.ItemIndex := 3 ;
-         end
+        for i := 4 Downto -3 do
+            begin
+            ComboBox.Items.AddObject(
+            format( '1E%d mg/ml',[i]), TObject(x) ) ;
+            x := x/10.0 ;
+            end ;
+        ComboBox.ItemIndex := 3 ;
+        end
      else begin
          // Set up stock soln. concentration lists
          ComboBox.Clear ;
          x := 1.0 ;
-         for i := 0 Downto -8 do begin
+         for i := 0 Downto -8 do
+            begin
             ComboBox.Items.AddObject(
             format( '1E%d M',[i]), TObject(x) ) ;
             x := x/10.0 ;
