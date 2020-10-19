@@ -71,6 +71,7 @@ unit OBSimMain;
 //                   Drug B now adrenoceptor agonist which blocks  transmitter release a GP ileum which is 10X less potent than morphine
 // 111.12.19 V3.2    Rabbit Arterial Ring: List out of range error now trapped when no unknown drugs defined
 // 22.07.20 V3.3     Lower limit of vertical range of chart display now limited to no more than -10% of full scale.
+// 19.10.20 V3.4     MP220 added to unknown drug list
 
 
 interface
@@ -801,6 +802,18 @@ begin
 
      // Unknown drugs
 
+     // MP220: Oxybutynin: Muscarinic antagonist
+     Drugs[NumDrugs].Name := 'MP220' ;
+     Drugs[NumDrugs].ShortName := 'MP220' ;
+     Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
+     Drugs[NumDrugs].BathConcentration := 0.0 ;
+     Drugs[NumDrugs].EC50_HistR := 2E-6*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].EC50_mAchR := 1E-9*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].Antagonist := True ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
+     Drugs[NumDrugs].Unknown := True ;
+     Inc(NumDrugs) ;
+
      Drugs[NumDrugs].Name := 'Drug 1' ; // Histamine antagonist / weak musc.
      Drugs[NumDrugs].ShortName := 'Dr1' ;
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
@@ -959,7 +972,6 @@ begin
      Drugs[NumDrugs].Unknown := True ;
      Drugs[NumDrugs].Units := 'ml' ;
      Inc(NumDrugs) ;
-
 
      // Copy set of drugs into reservoir
      for i:= 0 to NumDrugs-1 do ReservoirDrugs[i] := Drugs[i] ;
