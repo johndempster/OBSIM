@@ -72,6 +72,9 @@ unit OBSimMain;
 // 111.12.19 V3.2    Rabbit Arterial Ring: List out of range error now trapped when no unknown drugs defined
 // 22.07.20 V3.3     Lower limit of vertical range of chart display now limited to no more than -10% of full scale.
 // 19.10.20 V3.4     MP220 added to unknown drug list
+// 26.11.20 V3.5     Chick Biventer model now works correctly. Displays correct drugs actions (Ach,Cch,Neostigmine,Suzamethonium,atropine)
+//                   Changes to display duration now works correctly during recording as well as playback.
+
 
 
 interface
@@ -79,7 +82,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ScopeDisplay, ValidatedEdit, math, Menus, ExtCtrls,
-  HTMLLabel, StrUtils, shared, ComCtrls, shellapi, UITYpes ;
+  HTMLLabel, StrUtils, shared, ComCtrls, shellapi, UITYpes, Vcl.Imaging.jpeg ;
 
 const
     MaxPoints = 10000000 ;
@@ -118,9 +121,10 @@ type
           DisplayBathConcentration : single ;
           BathConcentration : single ;
           Conc : single ;
-          EC50_HistR : single ;
-          EC50_HistR_NC : single ;
-          EC50_nAchR : single ;
+          EC50_HistR : single ;          // Histamine H1
+          EC50_HistR_NC : single ;       //
+          EC50_nAchR : single ;          // Nicotonic
+          EC50_AchEsterase : single ;      // Cholinesterase inhibition
           EC50_mAchR : single ;
           EC50_mAchR_NC : single ;
           EC50_OpR : Single ;
@@ -135,6 +139,7 @@ type
           EC50_CaStore : Single ;
           EC50_BTXB : Single ;
           EC50_BTXE : Single ;
+
           Antagonist : Boolean ;
           Unknown : Boolean ;
           Tissue : Integer ;
@@ -236,6 +241,7 @@ type
     edStartTime: TValidatedEdit;
     sbDisplay: TScrollBar;
     mnNewExperiment: TMenuItem;
+    Image2: TImage;
     procedure FormShow(Sender: TObject);
     procedure TimerTimer(Sender: TObject);
     procedure bRecordClick(Sender: TObject);
@@ -485,7 +491,7 @@ begin
            rbNerve.Caption := 'Nerve' ;
            rbNerve.Checked := True ;
            rbNerve.Enabled := True ;
-           rbNerve.Caption := 'Muscle' ;
+           rbMuscle.Caption := 'Muscle' ;
            rbMuscle.Enabled := True ;
            JejunumStimGrp.Visible := False ;
            StimulationTypeGrp.Visible := True ;
@@ -536,6 +542,7 @@ begin
           Drugs[i].EC50_HistR := 1E30 ;
           Drugs[i].EC50_HistR_NC := 1E30 ;
           Drugs[i].EC50_nAchR := 1E30 ;
+          Drugs[i].EC50_AchEsterase := 1E30 ;
           Drugs[i].EC50_mAchR := 1E30 ;
           Drugs[i].EC50_mAchR_NC := 1E30 ;
           Drugs[i].EC50_OpR := 1E30 ;
@@ -567,7 +574,7 @@ begin
      Drugs[NumDrugs].EC50_HistR := 2E-7*RandG(1.0,0.05) ;
      //Drugs[NumDrugs].EC50_mAchR := 1E-3*RandG(1.0,0.05) ; Removed V2.1
      Drugs[NumDrugs].Antagonist := false ;
-     Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
      Inc(NumDrugs) ;
 
      Drugs[NumDrugs].Name := 'Mepyramine' ;
@@ -577,14 +584,14 @@ begin
      Drugs[NumDrugs].EC50_HistR := 2E-10*RandG(1.0,0.05) ;
      Drugs[NumDrugs].EC50_mAchR := 1.5E-5*RandG(1.0,0.05) ;
      Drugs[NumDrugs].Antagonist := True ;
-     Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
      Inc(NumDrugs) ;
 
      Drugs[NumDrugs].Name := 'Carbachol' ;
      Drugs[NumDrugs].ShortName := 'Cch' ;
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
      Drugs[NumDrugs].BathConcentration := 0.0 ;
-     Drugs[NumDrugs].EC50_nAchR := 1E-5*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].EC50_nAchR := 2.7E-6*RandG(1.0,0.05) ;
      Drugs[NumDrugs].EC50_mAchR := 5E-8*RandG(1.0,0.05) ;
      Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer + tJejunum ;
      Drugs[NumDrugs].Antagonist := False ;
@@ -615,7 +622,7 @@ begin
      Drugs[NumDrugs].BathConcentration := 0.0 ;
      Drugs[NumDrugs].EC50_OpR := 4.0E-8*RandG(1.0,0.05) ; {21/8/18 3.5E-8->4.0E-8}
      Drugs[NumDrugs].Antagonist := False ;
-     Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
      Inc(NumDrugs) ;
 
      Drugs[NumDrugs].Name := 'Loperamide' ;
@@ -624,7 +631,7 @@ begin
      Drugs[NumDrugs].BathConcentration := 0.0 ;
      Drugs[NumDrugs].EC50_OpR := 1E-7*RandG(1.0,0.05) ; ;
      Drugs[NumDrugs].Antagonist := False ;
-     Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
      Inc(NumDrugs) ;
 
      Drugs[NumDrugs].Name := 'Naloxone' ;
@@ -633,7 +640,7 @@ begin
      Drugs[NumDrugs].BathConcentration := 0.0 ;
      Drugs[NumDrugs].EC50_OpR := 1.5E-6*RandG(1.0,0.05) ;
      Drugs[NumDrugs].Antagonist := True ;
-     Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer ;
+     Drugs[NumDrugs].Tissue := tGPIleum  ;
      Inc(NumDrugs) ;
 
      Drugs[NumDrugs].Name := 'KCL' ;
@@ -769,6 +776,24 @@ begin
      Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer + tJejunum ;
      Inc(NumDrugs) ;
 
+     Drugs[NumDrugs].Name := 'Neostigmine' ; // Cholinesterase inhibitor
+     Drugs[NumDrugs].ShortName := 'Neo' ;
+     Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
+     Drugs[NumDrugs].BathConcentration := 0.0 ;
+     Drugs[NumDrugs].EC50_AchEsterase := 1E-6*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].Antagonist := True ;
+     Drugs[NumDrugs].Tissue := tChickBiventer ;
+     Inc(NumDrugs) ;
+
+     Drugs[NumDrugs].Name := 'Suxamethonium' ; // Depolarizing neuromuscular blocker / Nicotinic agonist
+     Drugs[NumDrugs].ShortName := 'Sux' ;
+     Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
+     Drugs[NumDrugs].BathConcentration := 0.0 ;
+     Drugs[NumDrugs].EC50_nAchR := 1E-6*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].Antagonist := False ;
+     Drugs[NumDrugs].Tissue := tChickBiventer ;
+     Inc(NumDrugs) ;
+
      Drugs[NumDrugs].Name := 'Pilocarpine' ; // Cholinoceptor agonist
      Drugs[NumDrugs].ShortName := 'Pil' ;
      Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
@@ -776,7 +801,7 @@ begin
      Drugs[NumDrugs].EC50_nAchR := 1E-5*RandG(1.0,0.05) ;
      Drugs[NumDrugs].EC50_mAchR := 1.65E-6*RandG(1.0,0.05) ;
      Drugs[NumDrugs].Antagonist := False ;
-     Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer  + tJejunum ;
+     Drugs[NumDrugs].Tissue := tGPIleum + tJejunum ;
      Inc(NumDrugs) ;
 
      Drugs[NumDrugs].Name := 'Hyoscine' ; // Cholinoceptor antagonist
@@ -785,7 +810,7 @@ begin
      Drugs[NumDrugs].BathConcentration := 0.0 ;
      Drugs[NumDrugs].EC50_nAchR := 2E-6*RandG(1.0,0.05) ;
      Drugs[NumDrugs].EC50_mAchR := 1E-7*RandG(1.0,0.05) ; {21/8/18 1E-10 > 1E-7M Hyoscine less potent}
-     Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
      Drugs[NumDrugs].Antagonist := True ;
      Inc(NumDrugs) ;
 
@@ -837,7 +862,7 @@ begin
 
      Drugs[NumDrugs].Antagonist := True ;
      Drugs[NumDrugs].Unknown := True ;
-     Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
      Inc(NumDrugs) ;
 
      Drugs[NumDrugs].Name := 'Drug 2' ; //
@@ -863,7 +888,7 @@ begin
      Drugs[NumDrugs].EC50_mAchR_NC := 1E-7*RandG(1.0,0.06) ;//
 
      Drugs[NumDrugs].Antagonist := True ;
-     Drugs[NumDrugs].Tissue := tGPIleum + tChickBiventer ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
      Drugs[NumDrugs].Unknown := True ;
      Inc(NumDrugs) ;
 
@@ -972,6 +997,27 @@ begin
      Drugs[NumDrugs].Unknown := True ;
      Drugs[NumDrugs].Units := 'ml' ;
      Inc(NumDrugs) ;
+
+     Drugs[NumDrugs].Name := 'Drug 1' ;
+     Drugs[NumDrugs].ShortName := 'Dr1' ;
+     Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
+     Drugs[NumDrugs].BathConcentration := 0.0 ;
+     Drugs[NumDrugs].EC50_nAchR := 5E-6*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].Tissue := tChickBiventer ;
+     Drugs[NumDrugs].Antagonist := False ;
+     Drugs[NumDrugs].Unknown := True ;
+     Inc(NumDrugs) ;
+
+     Drugs[NumDrugs].Name := 'Drug 2' ;
+     Drugs[NumDrugs].ShortName := 'Dr2' ;
+     Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
+     Drugs[NumDrugs].BathConcentration := 0.0 ;
+     Drugs[NumDrugs].EC50_nAchR := 5E-6*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].Antagonist := True ;
+     Drugs[NumDrugs].Tissue := tChickBiventer ;
+     Drugs[NumDrugs].Unknown := True ;
+     Inc(NumDrugs) ;
+
 
      // Copy set of drugs into reservoir
      for i:= 0 to NumDrugs-1 do ReservoirDrugs[i] := Drugs[i] ;
@@ -1490,7 +1536,8 @@ begin
     ADC[NumPointsInBuf] := Round( NewPoint/scDisplay.ChanScale[0] ) ;
     Inc(NumPointsInBuf) ;
     Inc(NumPointsDisplayed) ;
-    scDisplay.DisplayNewPoints( NumPointsInBuf - scDisplay.XOffset ) ;
+    scDisplay.DisplayNewPoints( NumPointsInBuf - 1- scDisplay.XOffset ) ;
+    outputdebugstring(pchar(format('%d',[scDisplay.XOffset])));
 
     end ;
 
@@ -1504,8 +1551,10 @@ const
     StimulusInterval = 1.0 ;
 var
     i : Integer ;
-    dConc : Single ;
+    Conc,dConc : Single ;
     nAchR : Single ;
+    AchEsterase : Single ;          // Cholinesterase inhibition
+    nAchRDesensitization : Single ; // Nicotinic junctional receptor desensitization
     Sum : Single ;
     Efficacy : Single ;
     Occupancy : Single ;
@@ -1518,56 +1567,92 @@ begin
 
     // Update drug bath concentrations
     MixingRate := (MaxMixingRate*InitialMixing) / ( 100.0 + InitialMixing) ;
-    for i := 0 to NumDrugs-1 do begin
+    for i := 0 to NumDrugs-1 do
+        begin
         dConc := (Drugs[i].FinalBathConcentration - Drugs[i].BathConcentration)*MixingRate*dt ;
         Drugs[i].BathConcentration := Max(Drugs[i].BathConcentration + dConc,0.0) ;
         end ;
 
-    // Nerve stimulation
+
+    // Cholinesterase inhibition (1=fully active, 0= inhibited)
+    Sum := 0.0 ;
+    for i := 0 to NumDrugs-1 do
+        begin
+        R := Drugs[i].BathConcentration/Drugs[i].EC50_AchEsterase ;
+        Sum := Sum + R  ;
+        end ;
+    Occupancy := sum / ( 1. + sum ) ;
+
+    Efficacy := 0.0 ;
+    for i := 0 to NumDrugs-1 do
+        begin
+        R := Drugs[i].BathConcentration/Drugs[i].EC50_AchEsterase ;
+        Efficacy := Efficacy + R ;
+        end ;
+    Efficacy := Efficacy / ( Sum + 0.001 ) ;
+    AchEsterase :=  efficacy*occupancy ;
+
+    // Nicotinic cholinoceptor receptor activation by agonists in bath
+
+    Sum := 0.0 ;
+    for i := 0 to NumDrugs-1 do
+        begin
+        Conc := Drugs[i].BathConcentration ;
+        if ContainsText(Drugs[i].Name,'acetylcholine') then Conc := Conc*(1.0 + AchEsterase*10.0) ;
+        R := Conc / Drugs[i].EC50_nAchR ;
+        Sum := Sum + R*R  ;
+        end ;
+    Occupancy := sum / ( 1. + sum ) ;
+
+    Efficacy := 0.0 ;
+    for i := 0 to NumDrugs-1 do if not Drugs[i].Antagonist then
+        begin
+        Conc := Drugs[i].BathConcentration ;
+        if ContainsText(Drugs[i].Name,'acetylcholine') then Conc := Conc*(1.0 + AchEsterase*10.0) ;
+        R := Conc/Drugs[i].EC50_nAchR ;
+        Efficacy := Efficacy + R*R ;
+        end ;
+    nAchR :=  efficacy*occupancy ;
+
+    // Desensitization of junctional receptors after acivation by nicotinic agonists
+    nAchRDesensitization := 1.0/(1.0 + (nAchR*nAChR)*5000.0) ;
+
+    // Nerve stimulated transmitter release
     MaxReleasedAch := nAch_EC50*4.0 ;
     RMax := NextRMax ;
-    if (not bStimulationOn.Enabled) and rbNerve.Checked then begin
-       if NumPointsInBuf >= NextStimulusAt then begin
+    if (not bStimulationOn.Enabled) and rbNerve.Checked then
+       begin
+       if NumPointsInBuf >= NextStimulusAt then
+          begin
           StimulusStartedAt := NumPointsInBuf ;
           NextStimulusAt := StimulusStartedAt + Round(StimulusInterval/dt) ;
-          //RMax := MeanRMax*RandG( 1.0, 0.025 ) ;
           end ;
        t := (NumPointsInBuf - StimulusStartedAt)*dt ;
        NerveReleasedAch := MaxReleasedAch*(1.0 - exp(-t/0.05))*exp(-t/0.1) ;
        end
     else NerveReleasedAch := 0.0 ;
 
-    // Nicotinic cholinoceptor receptor activation
-    Sum := 0.0 ;
-    for i := 0 to NumDrugs-1 do begin
-        R := Drugs[i].BathConcentration/Drugs[i].EC50_nAchR ;
-        Sum := Sum + R*R  ;
-        end ;
-    RNerve := NerveReleasedAch/nAch_EC50 ;
-    outputdebugstring(pchar(format('%.5g %.5g',[NerveReleasedAch,nAch_EC50])));
-    Sum := Sum + (RNerve*RNerve) ;
+    // Add nerve activated juntional nicotinic receptors to total
+    R := (NerveReleasedAch*nAchRDesensitization*(1.0 + AchEsterase*10.0))/nAch_EC50 ;
+    Sum := Sum + (R*R) ;
     Occupancy := sum / ( 1. + sum ) ;
-
-    Efficacy := 0.0 ;
-    for i := 0 to NumDrugs-1 do if not Drugs[i].Antagonist then begin
-        R := Drugs[i].BathConcentration/Drugs[i].EC50_nAchR ;
-        Efficacy := Efficacy + R*R ;
-        end ;
-    Efficacy := (Efficacy + (RNerve*RNerve))/ ( Sum + 0.001 ) ;
+    Efficacy := (Efficacy + (R*R))/ ( Sum + 0.001 ) ;
     nAchR :=  efficacy*occupancy ;
 
     Force := RandG( 0.0, BackgroundNoiseStDev ) ;
     Force := Force + RMax*nAchR ;
 
     // Direct muscle stimulation
-    if (not bStimulationOn.Enabled) and rbMuscle.Checked then begin
-       if NumPointsInBuf >= NextStimulusAt then begin
+    if (not bStimulationOn.Enabled) and rbMuscle.Checked then
+       begin
+       if NumPointsInBuf >= NextStimulusAt then
+          begin
           StimulusStartedAt := NumPointsInBuf ;
           NextStimulusAt := StimulusStartedAt + Round(StimulusInterval/dt) ;
-          RMax := MeanRMax*RandG( 1.0, 0.025 ) ;
+    //      RMax := MeanRMax*RandG( 1.0, 0.025 ) ;
           end ;
        t := (NumPointsInBuf - StimulusStartedAt)*dt ;
-       Force := Force + RMax*(1.0 - exp(-t/0.05))*exp(-t/0.1) ;
+       Force := Force + RMax*(1.0 - exp(-t/0.004))*exp(-t/0.15) ;
        Force := Min(Force,RMax) ;
 
        end ;
@@ -2647,9 +2732,11 @@ begin
     scDisplay.MaxPoints :=  Round(edTDisplay.Value) ;
     scDisplay.XMax := scDisplay.MaxPoints -1 ;
     scDisplay.VerticalCursors[0] := scDisplay.MaxPoints div 2 ;
-    scDisplay.XOffset := -1 ;
+    if bStop.Enabled then scDisplay.XOffset := sbDisplay.Position
+                     else scDisplay.XOffset := -1 ;
     scDisplay.invalidate ;
     end;
+
 
 procedure TMainFrm.FormKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
