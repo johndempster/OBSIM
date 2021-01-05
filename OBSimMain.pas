@@ -74,6 +74,7 @@ unit OBSimMain;
 // 19.10.20 V3.4     MP220 added to unknown drug list
 // 26.11.20 V3.5     Chick Biventer model now works correctly. Displays correct drugs actions (Ach,Cch,Neostigmine,Suzamethonium,atropine)
 //                   Changes to display duration now works correctly during recording as well as playback.
+// 05.01.21 V3.6     Drug E (mepyramine) added to unknown drug list
 
 
 
@@ -937,6 +938,17 @@ begin
      Drugs[NumDrugs].Unknown := True ;
      Inc(NumDrugs) ;
 
+     // Drug E: Mepyramine: H1 receptor antagonist
+     Drugs[NumDrugs].Name := 'Drug E' ;
+     Drugs[NumDrugs].ShortName := 'DrE' ;
+     Drugs[NumDrugs].FinalBathConcentration := 0.0 ;
+     Drugs[NumDrugs].BathConcentration := 0.0 ;
+     Drugs[NumDrugs].EC50_HistR := 2E-10*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].EC50_mAchR := 1.5E-5*RandG(1.0,0.05) ;
+     Drugs[NumDrugs].Antagonist := True ;
+     Drugs[NumDrugs].Tissue := tGPIleum ;
+     Drugs[NumDrugs].Unknown := True ;
+     Inc(NumDrugs) ;
 
      // Botulinum toxin B
      Drugs[NumDrugs].Name := 'Botulinum Toxin B' ;
